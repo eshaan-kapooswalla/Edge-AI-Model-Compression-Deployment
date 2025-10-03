@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+import os
 
 
 def load_dataset():
@@ -76,6 +77,8 @@ if __name__ == "__main__":
     # Training hyperparameters
     BATCH_SIZE = 64
     EPOCHS = 10
+    MODEL_SAVE_PATH = "models/baseline_model"
+    os.makedirs(os.path.dirname(MODEL_SAVE_PATH), exist_ok=True)
 
     # 1) Load dataset
     (train_images, train_labels), (test_images, test_labels) = load_dataset()
@@ -114,3 +117,8 @@ if __name__ == "__main__":
 
     final_val_accuracy = history.history["val_accuracy"][-1]
     print(f"\nFinal validation accuracy: {final_val_accuracy:.4f}")
+
+    # 7) Save the trained model (TensorFlow SavedModel format)
+    print(f"\n--- Saving model to {MODEL_SAVE_PATH} ---")
+    model.save(MODEL_SAVE_PATH)
+    print("--- Model Saved Successfully ---")
