@@ -6,6 +6,7 @@ import tensorflow as tf
 
 # --- Configuration ---
 MODEL_PATH = "models/baseline_model"
+BATCH_SIZE = 64
 
 def get_dir_size_mb(path: str = ".") -> float:
     """
@@ -24,6 +25,34 @@ def get_dir_size_mb(path: str = ".") -> float:
             if not os.path.islink(file_path):
                 total_size_bytes += os.path.getsize(file_path)
     return total_size_bytes / (1024 * 1024)
+
+
+def load_test_data():
+    """
+    Load the CIFAR-10 test dataset only.
+
+    Returns:
+        Tuple of (x_test, y_test)
+    """
+    (_, _), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
+    return x_test, y_test
+
+
+def measure_batch_inference_time(model: tf.keras.Model, batch_data: np.ndarray) -> float:
+    """
+    Measure inference latency for a single batch.
+
+    Args:
+        model: Loaded Keras model to benchmark
+        batch_data: Batch of input images shaped [batch, 32, 32, 3]
+
+    Returns:
+        Latency in milliseconds
+    """
+    start_time = time.perf_counter()
+    _ = model.predict(batch_data, verbose=0)
+    end_time = time.perf_counter()
+    return (end_time - start_time) * 1000.0
 
 
 def main():
@@ -59,7 +88,13 @@ def main():
 
     # Task: Measure inference time (latency).
     print("\n[TASK] Measuring inference latency...")
-    # (Implementation will be added in the next step)
+    test_images, _ = load_test_data()
+    print(f"Loaded {len(test_images)} test images.")
+    sample_batch = test_images[:BATCH_SIZE]
+    print("Performing a warm-up inference run...")
+    _ = model.predict(sample_batch, verbose=0)
+    batch_latency_ms = measure_batch_inference_time(model, sample_batch)
+    print(f"Inference time for one batch ({BATCH_SIZE} images): {batch_latency_ms:.2f} ms")
 
     # Task: Measure the peak RAM usage.
     print("\n[TASK] Measuring memory usage...")
