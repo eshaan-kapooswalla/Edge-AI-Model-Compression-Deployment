@@ -73,6 +73,10 @@ def build_resnet50_model(preprocessing_pipeline: tf.keras.Model) -> tf.keras.Mod
 
 
 if __name__ == "__main__":
+    # Training hyperparameters
+    BATCH_SIZE = 64
+    EPOCHS = 10
+
     # 1) Load dataset
     (train_images, train_labels), (test_images, test_labels) = load_dataset()
     print("Dataset loaded successfully.")
@@ -96,3 +100,17 @@ if __name__ == "__main__":
     # 5) Print model summary
     print("\n--- Model Summary ---")
     model.summary()
+
+    # 6) Train the model
+    print("\n--- Starting Model Training ---")
+    history = model.fit(
+        train_images,
+        train_labels,
+        epochs=EPOCHS,
+        batch_size=BATCH_SIZE,
+        validation_data=(test_images, test_labels),
+    )
+    print("--- Model Training Finished ---")
+
+    final_val_accuracy = history.history["val_accuracy"][-1]
+    print(f"\nFinal validation accuracy: {final_val_accuracy:.4f}")
