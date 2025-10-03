@@ -7,6 +7,24 @@ import tensorflow as tf
 # --- Configuration ---
 MODEL_PATH = "models/baseline_model"
 
+def get_dir_size_mb(path: str = ".") -> float:
+    """
+    Calculate the total size of a directory in megabytes.
+
+    Args:
+        path: Path to the directory to measure.
+
+    Returns:
+        Total size in megabytes.
+    """
+    total_size_bytes = 0
+    for dirpath, dirnames, filenames in os.walk(path):
+        for filename in filenames:
+            file_path = os.path.join(dirpath, filename)
+            if not os.path.islink(file_path):
+                total_size_bytes += os.path.getsize(file_path)
+    return total_size_bytes / (1024 * 1024)
+
 
 def main():
     """
@@ -36,7 +54,8 @@ def main():
 
     # Task: Measure and record the model's file size.
     print("\n[TASK] Measuring model size...")
-    # (Implementation will be added in the next step)
+    model_size_mb = get_dir_size_mb(MODEL_PATH)
+    print(f"Model size: {model_size_mb:.2f} MB")
 
     # Task: Measure inference time (latency).
     print("\n[TASK] Measuring inference latency...")
