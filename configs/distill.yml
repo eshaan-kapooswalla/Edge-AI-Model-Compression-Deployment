@@ -1,0 +1,8 @@
+# Knowledge distillation config
+seed: 1337
+distill:
+  data_dir: data
+  batch_size: 128
+  num_epochs: 1
+  lr: 0.05
+  teacher_ckpt: models/baseline_resnet18.pt
