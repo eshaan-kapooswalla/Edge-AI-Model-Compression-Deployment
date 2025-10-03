@@ -9,6 +9,7 @@ from memory_profiler import memory_usage
 MODEL_PATH = "models/baseline_model"
 BATCH_SIZE = 64
 NUM_LATENCY_TESTS = 200
+RESULTS_FILE = "benchmark_results.md"
 
 def get_dir_size_mb(path: str = ".") -> float:
     """
@@ -101,6 +102,33 @@ def measure_peak_memory_usage(model: tf.keras.Model, sample_data: np.ndarray) ->
     return float(peak_mib)
 
 
+def log_metrics_to_markdown(file_path: str, model_name: str, metrics: dict) -> None:
+    """
+    Log metrics to a markdown file, creating a header if the file doesn't exist.
+
+    Args:
+        file_path: Path to the markdown file
+        model_name: Display name of the model being benchmarked
+        metrics: Dict with keys: size_mb, latency_ms, peak_ram_mib, accuracy_pct
+    """
+    header = "| Model | Size (MB) | Latency (ms) | Peak RAM (MiB) | Accuracy (%) |\n"
+    separator = "|:---|---:|---:|---:|---:|\n"
+    row = (
+        f"| {model_name} | {metrics['size_mb']:.2f} | {metrics['latency_ms']:.2f} | "
+        f"{metrics['peak_ram_mib']:.2f} | {metrics['accuracy_pct']:.2f} |\n"
+    )
+
+    if not os.path.exists(file_path):
+        with open(file_path, "w") as f:
+            f.write(header)
+            f.write(separator)
+            f.write(row)
+    else:
+        with open(file_path, "a") as f:
+            f.write(row)
+    print(f"Successfully logged metrics for '{model_name}' to {file_path}")
+
+
 def main():
     """
     Orchestrate the baseline model benchmarking process.
@@ -158,7 +186,13 @@ def main():
 
     # Task: Log all baseline metrics in a structured format.
     print("\n[TASK] Logging all baseline metrics...")
-    # (Implementation will be added in the next step)
+    baseline_metrics = {
+        "size_mb": model_size_mb,
+        "latency_ms": avg_latency_ms,
+        "peak_ram_mib": peak_mem_mib,
+        "accuracy_pct": baseline_accuracy * 100.0,
+    }
+    log_metrics_to_markdown(RESULTS_FILE, "Baseline ResNet50", baseline_metrics)
 
     print("\n--- Benchmark Complete ---")
 
