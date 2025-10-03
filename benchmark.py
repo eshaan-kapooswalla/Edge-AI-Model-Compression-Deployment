@@ -7,6 +7,7 @@ import tensorflow as tf
 # --- Configuration ---
 MODEL_PATH = "models/baseline_model"
 BATCH_SIZE = 64
+NUM_LATENCY_TESTS = 200
 
 def get_dir_size_mb(path: str = ".") -> float:
     """
@@ -55,6 +56,35 @@ def measure_batch_inference_time(model: tf.keras.Model, batch_data: np.ndarray) 
     return (end_time - start_time) * 1000.0
 
 
+def measure_average_latency(model: tf.keras.Model, data: np.ndarray, num_samples: int = 200) -> tuple[float, float]:
+    """
+    Measure average and standard deviation of single-image inference latency.
+
+    Args:
+        model: Loaded Keras model
+        data: Dataset to sample single images from
+        num_samples: Number of single-image inferences to run
+
+    Returns:
+        (avg_latency_ms, std_latency_ms)
+    """
+    latencies_ms: list[float] = []
+
+    # Warm-up with a single-image prediction
+    print("Performing a warm-up inference run...")
+    _ = model.predict(data[0:1], verbose=0)
+
+    print(f"Running {num_samples} individual inferences for latency test...")
+    for i in range(num_samples):
+        sample = data[i:i + 1]
+        start_time = time.perf_counter()
+        _ = model.predict(sample, verbose=0)
+        end_time = time.perf_counter()
+        latencies_ms.append((end_time - start_time) * 1000.0)
+
+    return float(np.mean(latencies_ms)), float(np.std(latencies_ms))
+
+
 def main():
     """
     Orchestrate the baseline model benchmarking process.
@@ -89,12 +119,10 @@ def main():
     # Task: Measure inference time (latency).
     print("\n[TASK] Measuring inference latency...")
     test_images, _ = load_test_data()
-    print(f"Loaded {len(test_images)} test images.")
-    sample_batch = test_images[:BATCH_SIZE]
-    print("Performing a warm-up inference run...")
-    _ = model.predict(sample_batch, verbose=0)
-    batch_latency_ms = measure_batch_inference_time(model, sample_batch)
-    print(f"Inference time for one batch ({BATCH_SIZE} images): {batch_latency_ms:.2f} ms")
+    print(f"Loaded {len(test_images)} test images for latency measurement.")
+    avg_latency_ms, std_latency_ms = measure_average_latency(model, test_images, NUM_LATENCY_TESTS)
+    print(f"Average single-image inference latency: {avg_latency_ms:.2f} ms")
+    print(f"Standard deviation of latency: {std_latency_ms:.2f} ms")
 
     # Task: Measure the peak RAM usage.
     print("\n[TASK] Measuring memory usage...")
