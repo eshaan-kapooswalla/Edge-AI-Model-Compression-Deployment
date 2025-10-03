@@ -2,6 +2,7 @@ import os
 import time
 import numpy as np
 import tensorflow as tf
+from memory_profiler import memory_usage
 
 
 # --- Configuration ---
@@ -85,6 +86,21 @@ def measure_average_latency(model: tf.keras.Model, data: np.ndarray, num_samples
     return float(np.mean(latencies_ms)), float(np.std(latencies_ms))
 
 
+def measure_peak_memory_usage(model: tf.keras.Model, sample_data: np.ndarray) -> float:
+    """
+    Measure peak RAM (MiB) during a single inference using memory-profiler.
+
+    Args:
+        model: Loaded Keras model
+        sample_data: Single-sample batch shaped [1, 32, 32, 3]
+
+    Returns:
+        Peak memory usage in MiB (float)
+    """
+    peak_mib = memory_usage((model.predict, (sample_data,), {"verbose": 0}), interval=0.1, max_usage=True)
+    return float(peak_mib)
+
+
 def main():
     """
     Orchestrate the baseline model benchmarking process.
@@ -126,7 +142,9 @@ def main():
 
     # Task: Measure the peak RAM usage.
     print("\n[TASK] Measuring memory usage...")
-    # (Implementation will be added in the next step)
+    sample_for_memory_test = test_images[0:1]
+    peak_mem_mib = measure_peak_memory_usage(model, sample_for_memory_test)
+    print(f"Peak RAM usage during a single inference: {peak_mem_mib:.2f} MiB")
 
     # Task: Evaluate the model on the entire test dataset for accuracy.
     print("\n[TASK] Evaluating model accuracy...")
