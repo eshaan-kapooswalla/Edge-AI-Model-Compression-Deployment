@@ -24,7 +24,15 @@ def main():
 
     # Task: Load the saved baseline model from the file.
     print("\n[TASK] Loading model...")
-    # (Implementation will be added in the next step)
+    try:
+        model = tf.keras.models.load_model(MODEL_PATH)
+        print("Model loaded successfully.")
+    except Exception as e:
+        print(f"An error occurred while loading the model: {e}")
+        return
+
+    print("\n--- Loaded Model Summary ---")
+    model.summary()
 
     # Task: Measure and record the model's file size.
     print("\n[TASK] Measuring model size...")
