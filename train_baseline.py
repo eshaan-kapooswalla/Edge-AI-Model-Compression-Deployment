@@ -69,14 +69,6 @@ def build_resnet50_model(preprocessing_pipeline: tf.keras.Model) -> tf.keras.Mod
     outputs = tf.keras.layers.Dense(10, activation="softmax", name="predictions")(x)
 
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
-
-    # Compile with standard settings for classification
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
-        loss="sparse_categorical_crossentropy",
-        metrics=["accuracy"],
-    )
-
     return model
 
 
@@ -93,6 +85,14 @@ if __name__ == "__main__":
     model = build_resnet50_model(preprocessing_pipeline)
     print("ResNet50 model built successfully.")
 
-    # 4) Print model summary
+    # 4) Compile the model
+    model.compile(
+        optimizer="adam",
+        loss=tf.keras.losses.SparseCategoricalCrossentropy(),
+        metrics=["accuracy"],
+    )
+    print("Model compiled successfully.")
+
+    # 5) Print model summary
     print("\n--- Model Summary ---")
     model.summary()
