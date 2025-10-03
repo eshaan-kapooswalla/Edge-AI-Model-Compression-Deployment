@@ -134,7 +134,7 @@ def main():
 
     # Task: Measure inference time (latency).
     print("\n[TASK] Measuring inference latency...")
-    test_images, _ = load_test_data()
+    test_images, test_labels = load_test_data()
     print(f"Loaded {len(test_images)} test images for latency measurement.")
     avg_latency_ms, std_latency_ms = measure_average_latency(model, test_images, NUM_LATENCY_TESTS)
     print(f"Average single-image inference latency: {avg_latency_ms:.2f} ms")
@@ -148,7 +148,13 @@ def main():
 
     # Task: Evaluate the model on the entire test dataset for accuracy.
     print("\n[TASK] Evaluating model accuracy...")
-    # (Implementation will be added in the next step)
+    print(f"Evaluating accuracy on the full test dataset ({len(test_images)} images)...")
+    results = model.evaluate(test_images, test_labels, batch_size=64, verbose=1)
+    baseline_loss = results[0]
+    baseline_accuracy = results[1]
+    print(f"\nBaseline Model Performance on Test Set:")
+    print(f"  - Test Loss: {baseline_loss:.4f}")
+    print(f"  - Test Accuracy: {baseline_accuracy * 100:.2f}%")
 
     # Task: Log all baseline metrics in a structured format.
     print("\n[TASK] Logging all baseline metrics...")
