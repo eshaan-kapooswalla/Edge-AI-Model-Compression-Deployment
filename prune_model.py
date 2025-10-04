@@ -6,45 +6,43 @@ import tensorflow_model_optimization as tfmot
 import numpy as np
 
 # --- Configuration ---
-# Path to our saved baseline model.
 BASELINE_MODEL_PATH = "models/baseline_model"
-# We'll fine-tune the pruned model for a few epochs to let it recover accuracy.
 FINE_TUNE_EPOCHS = 3
-# We'll use the same batch size as our original training.
 BATCH_SIZE = 64
 
+# --- MODIFIED HELPER FUNCTION ---
 def load_dataset():
     """
-    Loads the CIFAR-10 dataset. We only need the training data to calculate
-    the number of steps for our pruning schedule.
+    Loads the CIFAR-10 dataset. We now need both training and test sets.
+    The test set will be used for validation during fine-tuning.
     """
-    (x_train, y_train), (_, _) = tf.keras.datasets.cifar10.load_data()
-    return (x_train, y_train)
+    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
+    return (x_train, y_train), (x_test, y_test)
 
 def main():
     """
     Main function to orchestrate the model pruning process.
     """
-    print("--- Starting Model Pruning Workflow ---
+    print("--- Starting Model Pruning Workflow ---\
 ")
 
     if not os.path.exists(BASELINE_MODEL_PATH):
         print(f"Error: Baseline model not found at {BASELINE_MODEL_PATH}")
-        print("Please run the training script `train_baseline.py` first.")
         return
 
-    # Load the baseline model.
+    # Load the baseline model
     print(f"Loading baseline model from: {BASELINE_MODEL_PATH}")
-    try:
-        baseline_model = tf.keras.models.load_model(BASELINE_MODEL_PATH)
-        print("Baseline model loaded successfully.")
-    except Exception as e:
-        print(f"An error occurred while loading the model: {e}")
-        return
+    baseline_model = tf.keras.models.load_model(BASELINE_MODEL_PATH)
+    print("Baseline model loaded successfully.")
+    
+    # --- MODIFIED SECTION ---
+    # We now load both training and testing data.
+    (train_images, train_labels), (test_images, test_labels) = load_dataset()
+    print(f"Loaded {len(train_images)} training images and {len(test_images)} test images.")
+    # --- END MODIFIED SECTION ---
 
-    # Define the pruning schedule.
+    # Define the pruning schedule
     print("\n[TASK] Defining the pruning schedule...")
-    (train_images, _), = load_dataset()
     num_train_samples = len(train_images)
     end_step = np.ceil(num_train_samples / BATCH_SIZE).astype(np.int32) * FINE_TUNE_EPOCHS
     
@@ -59,28 +57,50 @@ def main():
     }
     print(f"Pruning schedule defined to reach 50% sparsity in {end_step} steps.")
 
-    # --- NEW CODE STARTS HERE ---
-
-    # Task: Apply the pruning wrapper to the baseline model.
+    # Apply the pruning wrapper
     print("\n[TASK] Applying the pruning wrapper to the model...")
-
-    # The `tfmot.sparsity.keras.prune_low_magnitude` function takes our baseline model
-    # and our pruning configuration. It returns a new model where prunable layers
-    # have been wrapped.
-    # The `**pruning_params` syntax is Python's way of "unpacking" a dictionary's
-    # key-value pairs into keyword arguments for a function. It's equivalent to calling:
-    # prune_low_magnitude(baseline_model, pruning_schedule=pruning_params['pruning_schedule'])
     model_for_pruning = tfmot.sparsity.keras.prune_low_magnitude(
         baseline_model,
         **pruning_params
     )
-
     print("Pruning wrapper applied successfully.")
 
-    # To verify that the wrapper has been applied, we MUST inspect the model summary.
-    # The output will look different from the original model's summary.
-    print("\n--- Prunable Model Summary ---")
-    model_for_pruning.summary()
+    # Re-compile the prunable model
+    print("\n[TASK] Re-compiling the prunable model...")
+    model_for_pruning.compile(
+        optimizer='adam',
+        loss=tf.keras.losses.SparseCategoricalCrossentropy(),
+        metrics=['accuracy']
+    )
+    print("Prunable model re-compiled successfully.")
+
+    # --- NEW CODE STARTS HERE ---
+
+    # Task: Fine-tune the pruned model.
+    print("\n[TASK] Fine-tuning the prunable model...")
+
+    # Define the callbacks for the fine-tuning process.
+    callbacks = [
+        # This callback is MANDATORY for pruning. It updates the pruning-related
+        # variables in the model based on the current step. Without this, the
+        # model will not be pruned.
+        tfmot.sparsity.keras.UpdatePruningStep()
+    ]
+
+    print(f"Starting fine-tuning for {FINE_TUNE_EPOCHS} epochs...")
+    # We call `fit()` on our new, prunable model.
+    # Behind the scenes, this will both train the remaining weights and
+    # execute the pruning schedule you defined.
+    model_for_pruning.fit(
+        train_images,
+        train_labels,
+        batch_size=BATCH_SIZE,
+        epochs=FINE_TUNE_EPOCHS,
+        validation_data=(test_images, test_labels),
+        callbacks=callbacks  # Pass in our mandatory callback here.
+    )
+
+    print("--- Fine-tuning complete. ---")
 
     # --- NEW CODE ENDS HERE ---
 
