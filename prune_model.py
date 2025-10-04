@@ -7,6 +7,10 @@ import numpy as np
 
 # --- Configuration ---
 BASELINE_MODEL_PATH = "models/baseline_model"
+# --- NEW CONFIGURATION ---
+# Define the path where we will save our final, pruned model.
+PRUNED_MODEL_SAVE_PATH = "models/pruned_model"
+# --- END NEW CONFIGURATION ---
 FINE_TUNE_EPOCHS = 3
 BATCH_SIZE = 64
 
@@ -87,49 +91,26 @@ def main():
     )
     print("--- Fine-tuning complete. ---")
 
-    # --- NEW CODE STARTS HERE ---
-
-    # Task: Strip the pruning wrappers from the model.
+    # Strip the pruning wrappers
     print("\n[TASK] Stripping pruning wrappers to get the final model...")
-    
-    # The `strip_pruning` function removes the PruneLowMagnitude wrapper layers
-    # and returns a standard Keras model with the sparse weights baked in.
-    # This is the model we will save and benchmark.
     model_stripped = tfmot.sparsity.keras.strip_pruning(model_for_pruning)
-    
     print("Pruning wrappers stripped successfully.")
 
-    # --- VERIFICATION ---
-    # 1. Check the model summary. It should now look identical to the original
-    #    baseline model's summary, with the original layer types and parameter counts.
-    #    This confirms the scaffolding is gone.
-    print("\n--- Stripped Model Summary ---")
-    model_stripped.summary()
+    # --- NEW CODE STARTS HERE ---
 
-    # 2. The "Aha!" moment: Calculate the actual sparsity of the final model.
-    #    We do this by counting the number of non-zero weights in the trainable
-    #    layers and comparing it to the total number of weights.
-    def calculate_sparsity(model):
-        """Helper function to calculate the sparsity of a Keras model."""
-        total_params = 0
-        non_zero_params = 0
-        for layer in model.layers:
-            # We only care about the weights of trainable layers
-            if layer.trainable_weights:
-                # Concatenate all weight tensors of the layer into one flat vector
-                layer_weights = tf.concat([tf.reshape(w, [-1]) for w in layer.trainable_weights], axis=0)
-                total_params += tf.size(layer_weights).numpy()
-                non_zero_params += tf.math.count_nonzero(layer_weights).numpy()
-        
-        sparsity = 1.0 - (non_zero_params / total_params)
-        return sparsity, non_zero_params, total_params
-
-    final_sparsity, final_non_zero, final_total = calculate_sparsity(model_stripped)
-
-    print("\n--- Final Model Sparsity Verification ---")
-    print(f"Total trainable parameters in stripped model: {final_total:,}")
-    print(f"Non-zero trainable parameters in stripped model: {final_non_zero:,}")
-    print(f"Final model sparsity: {final_sparsity:.2%}")
+    # Task: Save the pruned and fine-tuned model.
+    print(f"\n[TASK] Saving the final stripped and pruned model to: {PRUNED_MODEL_SAVE_PATH}")
+    
+    # Create the directory to save the model if it doesn't exist
+    # os.path.dirname gets the parent directory ('models') from the full path.
+    os.makedirs(os.path.dirname(PRUNED_MODEL_SAVE_PATH), exist_ok=True)
+    
+    # We call `save()` on our final, stripped model. This saves the standard
+    # Keras model with its new sparse weights into the robust SavedModel format.
+    model_stripped.save(PRUNED_MODEL_SAVE_PATH)
+    
+    print("--- Final pruned model saved successfully. ---")
+    
     # --- NEW CODE ENDS HERE ---
 
 if __name__ == "__main__":
