@@ -5,7 +5,7 @@ import tensorflow as tf
 import tensorflow_model_optimization as tfmot
 import numpy as np
 
-# --- Configuration --
+# --- Configuration ---
 # Path to our saved baseline model.
 BASELINE_MODEL_PATH = "models/baseline_model"
 # We'll fine-tune the pruned model for a few epochs to let it recover accuracy.
@@ -25,7 +25,8 @@ def main():
     """
     Main function to orchestrate the model pruning process.
     """
-    print("--- Starting Model Pruning Workflow ---\n")
+    print("--- Starting Model Pruning Workflow ---
+")
 
     if not os.path.exists(BASELINE_MODEL_PATH):
         print(f"Error: Baseline model not found at {BASELINE_MODEL_PATH}")
