@@ -13,7 +13,6 @@ FINE_TUNE_EPOCHS = 3
 # We'll use the same batch size as our original training.
 BATCH_SIZE = 64
 
-# --- NEW HELPER FUNCTION ---
 def load_dataset():
     """
     Loads the CIFAR-10 dataset. We only need the training data to calculate
@@ -26,8 +25,7 @@ def main():
     """
     Main function to orchestrate the model pruning process.
     """
-    print("--- Starting Model Pruning Workflow ---\
-")
+    print("--- Starting Model Pruning Workflow ---\n")
 
     if not os.path.exists(BASELINE_MODEL_PATH):
         print(f"Error: Baseline model not found at {BASELINE_MODEL_PATH}")
@@ -43,38 +41,45 @@ def main():
         print(f"An error occurred while loading the model: {e}")
         return
 
-    # --- NEW CODE STARTS HERE ---
-
-    # Task: Define a pruning schedule.
+    # Define the pruning schedule.
     print("\n[TASK] Defining the pruning schedule...")
-
-    # Load the training data to determine the number of training steps.
     (train_images, _), = load_dataset()
     num_train_samples = len(train_images)
-    print(f"Loaded {num_train_samples} training images to calculate schedule steps.")
-
-    # Calculate the `end_step` for the pruning schedule. This is a crucial calculation.
-    # The pruning process happens over a series of training steps (batches). We want
-    # the pruning to finish at the very end of our fine-tuning phase.
-    # The total number of steps is (number of samples / batch size) * number of epochs.
     end_step = np.ceil(num_train_samples / BATCH_SIZE).astype(np.int32) * FINE_TUNE_EPOCHS
-    print(f"Fine-tuning for {FINE_TUNE_EPOCHS} epochs with a batch size of {BATCH_SIZE}.")
-    print(f"Calculated `end_step` for pruning: {end_step}")
-
-    # Define the pruning parameters using the PolynomialDecay schedule.
-    # This creates a dictionary that will be used to wrap the model.
+    
     pruning_params = {
         'pruning_schedule': tfmot.sparsity.keras.PolynomialDecay(
             initial_sparsity=0.0,
-            final_sparsity=0.50,  # Target 50% of weights to be zero.
-            begin_step=0,         # Start pruning from the very first step of fine-tuning.
-            end_step=end_step,    # End pruning at the end of the fine-tuning.
-            frequency=100         # Check and update the pruning mask every 100 steps.
+            final_sparsity=0.50,
+            begin_step=0,
+            end_step=end_step,
+            frequency=100
         )
     }
-    
-    print("\nPruning parameters defined successfully:")
-    print(pruning_params)
+    print(f"Pruning schedule defined to reach 50% sparsity in {end_step} steps.")
+
+    # --- NEW CODE STARTS HERE ---
+
+    # Task: Apply the pruning wrapper to the baseline model.
+    print("\n[TASK] Applying the pruning wrapper to the model...")
+
+    # The `tfmot.sparsity.keras.prune_low_magnitude` function takes our baseline model
+    # and our pruning configuration. It returns a new model where prunable layers
+    # have been wrapped.
+    # The `**pruning_params` syntax is Python's way of "unpacking" a dictionary's
+    # key-value pairs into keyword arguments for a function. It's equivalent to calling:
+    # prune_low_magnitude(baseline_model, pruning_schedule=pruning_params['pruning_schedule'])
+    model_for_pruning = tfmot.sparsity.keras.prune_low_magnitude(
+        baseline_model,
+        **pruning_params
+    )
+
+    print("Pruning wrapper applied successfully.")
+
+    # To verify that the wrapper has been applied, we MUST inspect the model summary.
+    # The output will look different from the original model's summary.
+    print("\n--- Prunable Model Summary ---")
+    model_for_pruning.summary()
 
     # --- NEW CODE ENDS HERE ---
 
