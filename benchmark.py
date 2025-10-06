@@ -8,8 +8,8 @@ from memory_profiler import memory_usage
 
 # --- Configuration --
 # --- MODIFIED CODE STARTS HERE ---
-# Point to the combined pruned + quantized TFLite model
-MODEL_PATH = "models/combined_pruned_quantized.tflite"
+# Revert default to the baseline SavedModel for future runs
+MODEL_PATH = "models/baseline_model"
 # --- MODIFIED CODE ENDS HERE ---
 
 NUM_LATENCY_TESTS = 200
