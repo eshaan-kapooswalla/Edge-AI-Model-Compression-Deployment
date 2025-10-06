@@ -8,8 +8,8 @@ from memory_profiler import memory_usage
 
 # --- Configuration --
 # --- MODIFIED CODE STARTS HERE ---
-# Point the script to the distilled student model.
-MODEL_PATH = "models/distilled_student_model"
+# Revert default target to the baseline model for future runs.
+MODEL_PATH = "models/baseline_model"
 # --- MODIFIED CODE ENDS HERE ---
 
 NUM_LATENCY_TESTS = 200
