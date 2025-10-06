@@ -8,8 +8,8 @@ from memory_profiler import memory_usage
 
 # --- Configuration --
 # --- MODIFIED CODE STARTS HERE ---
-# Revert default target to the baseline model for future runs.
-MODEL_PATH = "models/baseline_model"
+# Point to the combined pruned + quantized TFLite model
+MODEL_PATH = "models/combined_pruned_quantized.tflite"
 # --- MODIFIED CODE ENDS HERE ---
 
 NUM_LATENCY_TESTS = 200
@@ -124,8 +124,10 @@ def main():
     
     if MODEL_PATH.endswith('.tflite'):
         # --- MODIFIED CODE STARTS HERE ---
-        # We add a check to assign a more descriptive name based on the file.
-        if 'integer_only' in MODEL_PATH:
+        # Descriptive naming for TFLite artifacts
+        if 'combined_pruned_quantized' in MODEL_PATH:
+            model_name = "Combined Pruned + Quantized"
+        elif 'integer_only' in MODEL_PATH:
             model_name = "Full Integer Quantized"
         else:
             model_name = "Dynamic Range Quantized"
