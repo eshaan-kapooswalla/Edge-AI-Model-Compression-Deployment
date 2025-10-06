@@ -8,8 +8,8 @@ from memory_profiler import memory_usage
 
 # --- Configuration --
 # --- MODIFIED CODE STARTS HERE ---
-# Point the script to our new, fully-integer quantized model.
-MODEL_PATH = "models/quantized_integer_only.tflite"
+# Point the script to the distilled student model.
+MODEL_PATH = "models/distilled_student_model"
 # --- MODIFIED CODE ENDS HERE ---
 
 NUM_LATENCY_TESTS = 200
@@ -158,9 +158,14 @@ def main():
         accuracy = evaluate_tflite_model(interpreter, input_details, output_details, test_images, test_labels)
 
     else: # Keras Workflow... 
-        # ... (Keras workflow remains unchanged) ...
-        model_name = "Keras Baseline"
-        print("\n[INFO] Keras model detected. Using Keras workflow.")
+        # Provide descriptive names for Keras SavedModels
+        if "pruned" in MODEL_PATH:
+            model_name = "50% Pruned ResNet50"
+        elif "distilled" in MODEL_PATH:
+            model_name = "Distilled Student"
+        else:
+            model_name = "Baseline ResNet50"
+        print(f"\n[INFO] Keras model detected ({model_name}). Using Keras workflow.")
         model = tf.keras.models.load_model(MODEL_PATH)
         model_size_mb = get_dir_size_mb(MODEL_PATH)
         avg_latency = measure_keras_latency(model, test_images, NUM_LATENCY_TESTS)
