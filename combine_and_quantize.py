@@ -60,6 +60,13 @@ def main():
     print("Representative dataset generator created successfully.")
     print("This generator is now ready to be used for full integer quantization calibration.")
 
+    # Configure converter for Full Integer Quantization (weights + activations)
+    print("\n[TASK] Configuring the converter for FULL INTEGER quantization...")
+    converter.optimizations = [tf.lite.Optimize.DEFAULT]
+    converter.representative_dataset = representative_dataset
+    converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
+    print("Converter configured successfully for full integer quantization on the pruned model.")
+
 
 if __name__ == "__main__":
     main()
