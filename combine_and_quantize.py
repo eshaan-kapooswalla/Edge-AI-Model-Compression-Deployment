@@ -5,6 +5,7 @@ import numpy as np
 
 # --- Configuration ---
 PRUNED_MODEL_PATH = "models/pruned_model"
+COMBINED_OPTIMIZED_MODEL_PATH = "models/combined_pruned_quantized.tflite"
 
 
 # --- Helper functions: representative dataset (for full integer quantization) ---
@@ -66,6 +67,24 @@ def main():
     converter.representative_dataset = representative_dataset
     converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
     print("Converter configured successfully for full integer quantization on the pruned model.")
+
+    # Convert and save the final combined-optimization TFLite model
+    print("\n[TASK] Converting and saving the final combined-optimization model...")
+    print("This may take a moment as calibration is performed...")
+    try:
+        tflite_model_combined = converter.convert()
+        print("\nModel converted successfully after calibration.")
+    except Exception as e:
+        print(f"An error occurred during conversion: {e}")
+        return
+
+    os.makedirs(os.path.dirname(COMBINED_OPTIMIZED_MODEL_PATH), exist_ok=True)
+    with open(COMBINED_OPTIMIZED_MODEL_PATH, "wb") as f:
+        f.write(tflite_model_combined)
+
+    combined_size_mb = os.path.getsize(COMBINED_OPTIMIZED_MODEL_PATH) / (1024 * 1024)
+    print(f"Final combined-optimization model saved to: {COMBINED_OPTIMIZED_MODEL_PATH}")
+    print(f"Combined Pruned + Quantized TFLite model size: {combined_size_mb:.2f} MB")
 
 
 if __name__ == "__main__":
