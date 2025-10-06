@@ -7,6 +7,8 @@ from tensorflow.keras import layers
 
 # --- Configuration --
 BASELINE_MODEL_PATH = "models/baseline_model"
+# Path to save the distilled student model (SavedModel directory)
+STUDENT_MODEL_PATH = "models/student_model"
 # Alpha controls the balance between student and distillation loss.
 ALPHA = 0.1
 # Temperature softens probability distributions for distillation.
@@ -142,6 +144,12 @@ def main():
     )
     
     print("--- Distillation training complete. ---")
+
+    # Save the trained student model as a standalone artifact
+    os.makedirs(os.path.dirname(STUDENT_MODEL_PATH), exist_ok=True)
+    print(f"Saving distilled student model to: {STUDENT_MODEL_PATH}")
+    distiller.student.save(STUDENT_MODEL_PATH)
+    print("Student model saved successfully.")
 
     # --- NEW CODE ENDS HERE ---
 
