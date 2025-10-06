@@ -7,107 +7,127 @@ from tensorflow.keras import layers
 
 # --- Configuration ---
 BASELINE_MODEL_PATH = "models/baseline_model"
+# Alpha controls the balance between the two loss components.
+# A lower alpha gives more weight to the distillation loss.
+ALPHA = 0.1
+# Temperature is used to soften the probability distributions.
+TEMPERATURE = 10
 
 # --- Student Model Definition (Unchanged) ---
 def create_student_model(input_shape=(32, 32, 3), num_classes=10):
     # ... (code from previous task is unchanged)
     student_model = keras.Sequential([
         keras.Input(shape=input_shape),
-        layers.Conv2D(32, (3, 3), strides=(1, 1), padding="same", activation="relu"),
+        layers.Conv2D(32, (3, 3), padding="same", activation="relu"),
         layers.MaxPooling2D(pool_size=(2, 2)),
-        layers.Conv2D(64, (3, 3), strides=(1, 1), padding="same", activation="relu"),
+        layers.Conv2D(64, (3, 3), padding="same", activation="relu"),
         layers.MaxPooling2D(pool_size=(2, 2)),
-        layers.Conv2D(128, (3, 3), strides=(1, 1), padding="same", activation="relu"),
+        layers.Conv2D(128, (3, 3), padding="same", activation="relu"),
         layers.MaxPooling2D(pool_size=(2, 2)),
         layers.Flatten(),
         layers.Dense(256, activation="relu"),
         layers.Dense(num_classes),
-    ])
+    ], name="student")
     return student_model
 
-# --- NEW CODE STARTS HERE ---
-
-# Task: Create a custom Distiller model/class that encapsulates both teacher and student.
-
+# --- Distiller Class (MODIFIED) ---
 class Distiller(keras.Model):
-    """
-    A custom Keras Model to manage the knowledge distillation training process.
-
-    This class acts as a container for both the student and teacher models.
-    We will build upon this class in subsequent tasks to add the custom
-    training logic (compile and train_step).
-    """
     def __init__(self, student, teacher):
-        """
-        Initializes the Distiller model.
-
-        Args:
-            student: A Keras model instance (our lightweight student).
-            teacher: A Keras model instance (our powerful, pre-trained teacher).
-        """
-        # Always call the parent constructor first.
         super().__init__()
-        
-        # Store the student and teacher models as attributes of this class.
         self.teacher = teacher
         self.student = student
-        print("Distiller initialized with a student and a teacher model.")
+        # We will define the loss functions and other training components
+        # in the compile() method.
 
-    def call(self, x, training=False):
+    def compile(
+        self,
+        optimizer,
+        metrics,
+        student_loss_fn,
+        distillation_loss_fn,
+        alpha=0.1,
+        temperature=10,
+    ):
         """
-        Defines the forward pass for the Distiller model.
+        Configures the Distiller for training.
 
-        For inference (when training=False), we only need the student's output.
-        The `training` argument is a standard part of the Keras `call` signature.
+        This is a custom compile method that sets up the optimizer, metrics,
+        and the two separate loss functions required for distillation.
 
         Args:
-            x: The input data.
-            training (bool): A flag indicating if the model is in training mode.
-
-        Returns:
-            The output predictions from the student model.
+            optimizer: The optimizer to use for training.
+            metrics: A list of metrics to monitor during training.
+            student_loss_fn: The loss function for the student's predictions against hard labels.
+            distillation_loss_fn: The loss function for comparing student and teacher soft predictions.
+            alpha (float): The weight for the student loss.
+            temperature (int): The temperature for softening probabilities.
         """
-        # The forward pass of the Distiller simply returns the student's predictions.
-        # This is because after distillation, the student is the final, standalone model.
+        # We call the parent's compile method to handle the standard parts of compilation.
+        super().compile(optimizer=optimizer, metrics=metrics)
+        
+        # Store the custom components as attributes of the Distiller.
+        self.student_loss_fn = student_loss_fn
+        self.distillation_loss_fn = distillation_loss_fn
+        self.alpha = alpha
+        self.temperature = temperature
+        print("Distiller compiled with custom loss functions and hyperparameters.")
+
+    def call(self, x, training=False):
+        # The forward pass remains the same.
         return self.student(x, training=training)
 
-# --- NEW CODE ENDS HERE ---
-
+# --- Main Workflow (MODIFIED) ---
 def main():
-    """
-    Main function to set up the Distiller model.
-    """
-    print("--- Knowledge Distillation Workflow ---\n")
+    print("--- Knowledge Distillation Workflow ---\
+")
     
-    # --- Part 1: Student Model ---
+    # --- Create Student and Teacher ---
     print("[TASK] Creating the student model...")
     student = create_student_model()
     print("Student model created.\n")
 
-    # --- Part 2: Teacher Model ---
     print("[TASK] Loading the teacher model...")
     if not os.path.exists(BASELINE_MODEL_PATH):
         print(f"Error: Baseline model not found at {BASELINE_MODEL_PATH}")
         return
-
     teacher = keras.models.load_model(BASELINE_MODEL_PATH)
     teacher.trainable = False
     print("Teacher model loaded and frozen.\n")
 
-    # --- NEW CODE STARTS HERE ---
-    
-    # --- Part 3: Create the Distiller ---
+    # --- Create the Distiller ---
     print("[TASK] Creating the Distiller model...")
-    
-    # Instantiate our custom Distiller class, passing it the student and teacher.
-    # This single 'distiller' object now encapsulates the entire training setup.
     distiller = Distiller(student=student, teacher=teacher)
     
+    # --- NEW CODE STARTS HERE ---
+
+    # --- Compile the Distiller ---
+    print("\n[TASK] Compiling the Distiller with custom loss functions...")
+
+    # 1. Instantiate the optimizer. Adam is a robust choice.
+    optimizer = keras.optimizers.Adam()
+
+    # 2. Instantiate the two loss functions.
+    student_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+    distillation_loss = tf.keras.losses.KLDivergence()
+
+    # 3. Call our custom compile method.
+    # We pass the optimizer, a standard 'accuracy' metric to monitor, and our two
+    # loss functions. The alpha and temperature values are taken from the config.
+    distiller.compile(
+        optimizer=optimizer,
+        metrics=[keras.metrics.SparseCategoricalAccuracy()],
+        student_loss_fn=student_loss,
+        distillation_loss_fn=distillation_loss,
+        alpha=ALPHA,
+        temperature=TEMPERATURE,
+    )
+
     print("\n--- Verification ---")
-    print("Distiller model created successfully.")
-    # We can access the internal models to verify they are correct.
-    print(f"Distiller's student model name: {distiller.student.name}")
-    print(f"Distiller's teacher model name: {distiller.teacher.name}")
+    print("Distiller is now fully configured and ready for training.")
+    print(f"Student Loss Function: {distiller.student_loss_fn.name}")
+    print(f"Distillation Loss Function: {distiller.distillation_loss_fn.name}")
+    print(f"Alpha (Student Loss Weight): {distiller.alpha}")
+    print(f"Temperature: {distiller.temperature}")
 
     # --- NEW CODE ENDS HERE ---
 
